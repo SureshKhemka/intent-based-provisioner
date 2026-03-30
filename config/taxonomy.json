@@ -1,0 +1,37 @@
+{
+  "intents": [
+    {"name": "compute.provision",   "description": "Create a new VM or compute instance"},
+    {"name": "compute.terminate",   "description": "Delete or destroy a VM"},
+    {"name": "compute.resize",      "description": "Change CPU, RAM or disk of existing VM"},
+    {"name": "compute.start_stop",  "description": "Start or stop a VM"},
+    {"name": "compute.status",      "description": "Check status of a VM"},
+    {"name": "compute.list",        "description": "List VMs or compute instances"},
+
+    {"name": "k8s.deploy",          "description": "Deploy or release a service to Kubernetes"},
+    {"name": "k8s.scale",           "description": "Scale replicas of a Kubernetes deployment"},
+    {"name": "k8s.rollback",        "description": "Rollback a Kubernetes deployment to previous version"},
+    {"name": "k8s.status",          "description": "Check health or status of pods or deployments"},
+    {"name": "k8s.logs",            "description": "Fetch or tail logs from a pod or service"},
+    {"name": "k8s.exec",            "description": "Open a shell or exec into a container"},
+    {"name": "k8s.delete",          "description": "Delete a Kubernetes deployment or namespace"},
+
+    {"name": "db.provision",        "description": "Create a new database instance"},
+    {"name": "db.delete",           "description": "Delete a database instance"},
+    {"name": "db.resize",           "description": "Resize storage or instance type of a database"},
+    {"name": "db.backup",           "description": "Take a snapshot or backup of a database"},
+    {"name": "db.restore",          "description": "Restore a database from backup or snapshot"},
+    {"name": "db.access",           "description": "Grant or revoke user access to a database"},
+    {"name": "db.status",           "description": "Check status or connections of a database"},
+
+    {"name": "net.dns_create",      "description": "Create a DNS record"},
+    {"name": "net.dns_delete",      "description": "Delete a DNS record"},
+    {"name": "net.lb_provision",    "description": "Create a load balancer"},
+    {"name": "net.lb_update",       "description": "Update load balancer settings"},
+    {"name": "net.firewall",        "description": "Open or close a firewall port or rule"},
+    {"name": "net.status",          "description": "Show DNS records or network status"},
+
+    {"name": "meta.cost",           "description": "Query cost or spend for resources"},
+    {"name": "meta.quota",          "description": "Check quota or limits for resources"},
+    {"name": "meta.unknown",        "description": "Request does not match any known intent"}
+  ]
+}

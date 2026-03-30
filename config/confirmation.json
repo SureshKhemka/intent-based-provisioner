@@ -1,0 +1,14 @@
+{
+  "always": [
+    "compute.terminate",
+    "k8s.delete",
+    "db.delete",
+    "db.access",
+    "db.restore"
+  ],
+  "when_prod": [
+    "net.firewall",
+    "k8s.deploy",
+    "compute.provision"
+  ]
+}
