@@ -4,7 +4,7 @@ A local LLM-powered intent classifier and execution engine for infrastructure pr
 
 ---
 
-## How It Works
+## How It Works:
 
 ```
 Developer types:  "spin up a 4 core VM in prod and open port 8080 on it"
