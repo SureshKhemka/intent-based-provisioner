@@ -1,0 +1,25 @@
+{
+  "compute.provision": {
+    "cpu":         "2",
+    "ram_gb":      "8",
+    "storage_gb":  "50",
+    "os":          "ubuntu-22.04",
+    "region":      "ap-south-1",
+    "environment": "staging"
+  },
+  "db.provision": {
+    "engine":      "postgres",
+    "version":     "15",
+    "storage_gb":  "100",
+    "instance":    "db.t3.medium",
+    "environment": "staging"
+  },
+  "k8s.deploy": {
+    "replicas":    "2",
+    "environment": "staging"
+  },
+  "net.lb_provision": {
+    "type":        "application",
+    "scheme":      "internal"
+  }
+}
