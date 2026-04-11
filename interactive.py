@@ -4,6 +4,9 @@ import os
 from classify import load_config, build_system_prompt, classify_intent
 from context_manager import ContextManager
 from execution_router import ExecutionRouter
+from policy_enricher import enrich as policy_enrich
+from policy_validator import validate as policy_validate, print_policy_result
+from policy_engine import health_check, load_policy_config
 
 CONTEXT_DIR = os.path.join(os.path.dirname(__file__), "context")
 
@@ -51,8 +54,16 @@ def print_classification(result: dict):
 
         if params:
             print(f"{prefix} Params     :")
+            policy_fields = {
+                p["field"] for p in item.get("policy_applied", [])
+            }
             for k, v in params.items():
-                tag = " (default)" if k in defaults_used else ""
+                if k in policy_fields:
+                    tag = " (policy)"
+                elif k in defaults_used:
+                    tag = " (default)"
+                else:
+                    tag = ""
                 print(f"{prefix}               {k} = {v}{tag}")
         else:
             print(f"{prefix} Params     : (none extracted)")
@@ -92,11 +103,18 @@ def main():
     router        = ExecutionRouter(dry_run=True)
     classify_only = False
 
+    policy_config  = load_policy_config()
+    opa_available  = health_check(policy_config)
+
     print("=" * 60)
     print("  Infrastructure Intent-Based Provisioner")
     print(f"  Model      : qwen3:4b via Ollama")
     print(f"  Intents    : {len(intent_names)} loaded from config")
     print(f"  Exec mode  : DRY-RUN 🔵  (type 'mode' to toggle)")
+    if opa_available:
+        print(f"  OPA Policy : CONNECTED ✓")
+    else:
+        print(f"  OPA Policy : UNAVAILABLE (enrichment/validation will be skipped)")
     print(f"  Type 'help' for all commands")
     print("=" * 60)
 
@@ -164,15 +182,32 @@ def main():
             # Step 3 — classify
             result = classify_intent(resolved, system_prompt, defaults, confirmation)
 
-            # Step 4 — show classification
+            # Step 4 — policy enrichment (fill org-standard defaults)
+            result["intents"] = policy_enrich(result.get("intents", []))
+
+            # Step 5 — policy validation (check guardrails)
+            result["intents"] = policy_validate(result.get("intents", []))
+
+            # Step 6 — show classification + policy results
             print_classification(result)
 
-            # Step 5 — execute
-            if not classify_only:
+            # Show policy validation output
+            blocked = False
+            for item in result.get("intents", []):
+                print_policy_result(item)
+                validation = item.get("policy_validation", {})
+                if not validation.get("allow", True):
+                    blocked = True
+
+            # Step 7 — execute (skip if policy blocked)
+            if blocked:
+                print(f"\n  ── Execution BLOCKED by policy ──────────────────────")
+                print(f"     Resolve the violations above before retrying.")
+            elif not classify_only:
                 print(f"\n  ── Execution ────────────────────────────────────────")
                 router.execute(result)
 
-            # Step 6 — save to context
+            # Step 8 — save to context
             context.add_turn(user_input, result)
 
         except Exception as e:

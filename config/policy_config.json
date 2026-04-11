@@ -1,0 +1,25 @@
+{
+  "opa_endpoint": "http://localhost:8181",
+  "eval_mode": "server",
+  "health_path": "/health",
+  "policy_paths": {
+    "compute": {
+      "defaults":   "policies/compute/defaults",
+      "guardrails": "policies/compute/guardrails"
+    },
+    "k8s": {
+      "defaults":   "policies/k8s/defaults",
+      "guardrails": "policies/k8s/guardrails"
+    },
+    "db": {
+      "defaults":   "policies/db/defaults",
+      "guardrails": "policies/db/guardrails"
+    },
+    "net": {
+      "defaults":   "policies/net/defaults",
+      "guardrails": "policies/net/guardrails"
+    }
+  },
+  "timeout_seconds": 3,
+  "fallback_on_error": true
+}
