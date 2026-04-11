@@ -98,17 +98,18 @@ def print_help(intent_names: list, dry_run: bool):
 
 
 def main():
-    taxonomy, defaults, confirmation = load_config()
+    taxonomy, defaults, confirmation, model_config = load_config()
     intent_names  = [i["name"] for i in taxonomy["intents"]]
     router        = ExecutionRouter(dry_run=True)
     classify_only = False
+    model_name    = model_config.get("model", "qwen3:4b")
 
     policy_config  = load_policy_config()
     opa_available  = health_check(policy_config)
 
     print("=" * 60)
     print("  Infrastructure Intent-Based Provisioner")
-    print(f"  Model      : qwen3:4b via Ollama")
+    print(f"  Model      : {model_name} via Ollama")
     print(f"  Intents    : {len(intent_names)} loaded from config")
     print(f"  Exec mode  : DRY-RUN 🔵  (type 'mode' to toggle)")
     if opa_available:
@@ -180,7 +181,7 @@ def main():
             system_prompt = build_system_prompt(taxonomy, context_block)
 
             # Step 3 — classify
-            result = classify_intent(resolved, system_prompt, defaults, confirmation)
+            result = classify_intent(resolved, system_prompt, defaults, confirmation, model_config)
 
             # Step 4 — policy enrichment (fill org-standard defaults)
             result["intents"] = policy_enrich(result.get("intents", []))
