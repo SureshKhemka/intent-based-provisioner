@@ -39,17 +39,18 @@ def score_param_extraction(actual_intents: list) -> dict:
     }
 
 
-def classify(utterance: str, system_prompt: str) -> tuple:
-    taxonomy, defaults, confirmation = load_config()
+def classify(utterance: str, system_prompt: str, defaults: dict,
+             confirmation: dict, model_config: dict) -> tuple:
     start  = time.time()
-    result = classify_intent(utterance, system_prompt, defaults, confirmation)
+    result = classify_intent(utterance, system_prompt, defaults, confirmation, model_config)
     return result, result.get("latency_s", round(time.time() - start, 2))
 
 
 def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    taxonomy, defaults, confirmation = load_config()
+    taxonomy, defaults, confirmation, model_config = load_config()
     system_prompt = build_system_prompt(taxonomy)
+    model_name    = model_config.get("model", "qwen3:4b")
 
     with open(TEST_FILE) as f:
         data = json.load(f)
@@ -66,6 +67,7 @@ def main():
 
     print("=" * 60)
     print("  Evaluation Run")
+    print(f"  Model     : {model_name}")
     print(f"  Running   : {len(cases)} reviewed cases")
     print(f"  Skipped   : {unreviewed} unreviewed")
     print("=" * 60)
@@ -89,7 +91,7 @@ def main():
         print(f"  [{idx:03d}/{len(cases)}] {utterance[:55]:<55}", end="\r")
 
         try:
-            result, latency = classify(utterance, system_prompt)
+            result, latency = classify(utterance, system_prompt, defaults, confirmation, model_config)
             actual_intents  = result.get("intents", [])
             actual_compound = result.get("compound", False)
 

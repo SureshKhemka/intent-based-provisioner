@@ -10,7 +10,7 @@ def load_config():
     def read(filename):
         with open(os.path.join(CONFIG_DIR, filename)) as f:
             return json.load(f)
-    return read("taxonomy.json"), read("defaults.json"), read("confirmation.json")
+    return read("taxonomy.json"), read("defaults.json"), read("confirmation.json"), read("model_config.json")
 
 
 def build_system_prompt(taxonomy: dict, context_block: str = "") -> str:
@@ -88,15 +88,23 @@ def enforce_confirmation(intents: list, confirmation: dict) -> list:
 
 
 def classify_intent(user_request: str, system_prompt: str,
-                    defaults: dict, confirmation: dict) -> dict:
+                    defaults: dict, confirmation: dict,
+                    model_config: dict = None) -> dict:
+    if model_config is None:
+        model_config = {}
+    model    = model_config.get("model", "qwen3:4b")
+    endpoint = model_config.get("ollama_endpoint", "http://localhost:11434")
+    temp     = model_config.get("temperature", 0.1)
+    think    = model_config.get("think", False)
+
     start = time.time()
     response = requests.post(
-        "http://localhost:11434/api/chat",
+        f"{endpoint}/api/chat",
         json={
-            "model": "qwen3:4b",
+            "model": model,
             "format": "json",
-            "options": {"temperature": 0.1},
-            "think": False,
+            "options": {"temperature": temp},
+            "think": think,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user",   "content": user_request}

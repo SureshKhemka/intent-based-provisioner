@@ -7,6 +7,12 @@ CONFIG_DIR  = os.path.join(os.path.dirname(__file__), "config")
 TESTS_DIR   = os.path.join(os.path.dirname(__file__), "tests")
 OUTPUT_FILE = os.path.join(TESTS_DIR, "test_cases.json")
 
+
+def _load_model_config() -> dict:
+    path = os.path.join(CONFIG_DIR, "model_config.json")
+    with open(path) as f:
+        return json.load(f)
+
 GENERATE_PROMPT = """Generate {count} realistic natural language requests that a developer might type to an infrastructure platform.
 
 Intent: {name}
@@ -37,7 +43,14 @@ Example:
 """
 
 
-def generate_utterances(intent_name: str, description: str, count: int = 5) -> list:
+def generate_utterances(intent_name: str, description: str, count: int = 5,
+                        model_config: dict = None) -> list:
+    if model_config is None:
+        model_config = _load_model_config()
+    model    = model_config.get("model", "qwen3:4b")
+    endpoint = model_config.get("ollama_endpoint", "http://localhost:11434")
+    think    = model_config.get("think", False)
+
     prompt = GENERATE_PROMPT.format(
         name=intent_name,
         description=description,
@@ -45,12 +58,12 @@ def generate_utterances(intent_name: str, description: str, count: int = 5) -> l
     )
 
     response = requests.post(
-        "http://localhost:11434/api/generate",
+        f"{endpoint}/api/generate",
         json={
-            "model": "qwen3:4b",
+            "model": model,
             "prompt": prompt,
             "options": {"temperature": 0.8},
-            "think": False,
+            "think": think,
             "stream": False
         }
     )
@@ -82,16 +95,22 @@ def generate_utterances(intent_name: str, description: str, count: int = 5) -> l
     return []
 
 
-def generate_compound_cases(count: int = 15) -> list:
+def generate_compound_cases(count: int = 15, model_config: dict = None) -> list:
+    if model_config is None:
+        model_config = _load_model_config()
+    model    = model_config.get("model", "qwen3:4b")
+    endpoint = model_config.get("ollama_endpoint", "http://localhost:11434")
+    think    = model_config.get("think", False)
+
     prompt = COMPOUND_PROMPT.format(count=count)
 
     response = requests.post(
-        "http://localhost:11434/api/generate",
+        f"{endpoint}/api/generate",
         json={
-            "model": "qwen3:4b",
+            "model": model,
             "prompt": prompt,
             "options": {"temperature": 0.8},
-            "think": False,
+            "think": think,
             "stream": False
         }
     )
@@ -132,10 +151,12 @@ def main():
     with open(os.path.join(CONFIG_DIR, "taxonomy.json")) as f:
         taxonomy = json.load(f)
 
-    intents    = taxonomy["intents"]
-    test_cases = []
+    model_config = _load_model_config()
+    intents      = taxonomy["intents"]
+    test_cases   = []
 
-    print(f"Generating test cases for {len(intents)} intents...\n")
+    print(f"Generating test cases for {len(intents)} intents...")
+    print(f"  Using model: {model_config.get('model', 'qwen3:4b')}\n")
 
     for idx, intent in enumerate(intents, 1):
         name        = intent["name"]
@@ -143,7 +164,7 @@ def main():
         print(f"  [{idx}/{len(intents)}] {name}... ", end="", flush=True)
 
         try:
-            utterances = generate_utterances(name, description, count=5)
+            utterances = generate_utterances(name, description, count=5, model_config=model_config)
             for i, utt in enumerate(utterances):
                 test_cases.append({
                     "id":               make_id(name, i + 1),
@@ -160,7 +181,7 @@ def main():
     # Compound cases
     print(f"\n  [compound] Generating compound test cases... ", end="", flush=True)
     try:
-        compound_utterances = generate_compound_cases(count=15)
+        compound_utterances = generate_compound_cases(count=15, model_config=model_config)
         for i, utt in enumerate(compound_utterances):
             test_cases.append({
                 "id":               f"compound_{i+1:04d}",

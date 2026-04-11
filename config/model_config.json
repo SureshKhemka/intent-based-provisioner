@@ -1,0 +1,6 @@
+{
+  "model": "qwen3:4b",
+  "ollama_endpoint": "http://localhost:11434",
+  "temperature": 0.1,
+  "think": false
+}
