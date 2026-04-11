@@ -18,7 +18,15 @@ Developer types:  "spin up a 4 core VM in prod and open port 8080 on it"
               │  compound: true                          │
               └─────────────────────────────────────────┘
                                     ↓
-                          Execution Router
+                      Apply Defaults (config/defaults.json)
+                                    ↓
+                      Policy Enrichment (OPA defaults)
+                   fills: encryption, backups, instance sizing
+                                    ↓
+                      Policy Validation (OPA guardrails)
+                   checks: regions, limits, prod requirements
+                                    ↓
+                      Confirmation Gate + Execution Router
                                     ↓
               ┌─────────────────────────────────────────┐
               │  compute_handler → provision VM          │
@@ -47,13 +55,33 @@ intent-based-provisioner/
 │   ├── db_handler.py       ← db.provision/delete/resize/backup/restore/access/status
 │   └── net_handler.py      ← net.dns_create/dns_delete/lb_provision/lb_update/firewall/status
 │
+├── policy_engine.py        ← OPA REST client with health check + graceful fallback
+├── policy_enricher.py      ← Queries OPA defaults, merges org-standard values into params
+├── policy_validator.py     ← Queries OPA guardrails, blocks execution on violations
+│
 ├── config/                 ← All configuration — no code changes needed
 │   ├── taxonomy.json       ← 29 intents + descriptions
 │   ├── defaults.json       ← Default params per intent
-│   └── confirmation.json   ← Which intents need confirmation + conditions
+│   ├── confirmation.json   ← Which intents need confirmation + conditions
+│   └── policy_config.json  ← OPA endpoint, timeout, policy path mappings
+│
+├── policies/               ← OPA Rego policies (per domain)
+│   ├── compute/
+│   │   ├── defaults.rego / defaults_test.rego
+│   │   └── guardrails.rego / guardrails_test.rego
+│   ├── k8s/
+│   │   ├── defaults.rego / defaults_test.rego
+│   │   └── guardrails.rego / guardrails_test.rego
+│   ├── db/
+│   │   ├── defaults.rego / defaults_test.rego
+│   │   └── guardrails.rego / guardrails_test.rego
+│   └── net/
+│       ├── defaults.rego / defaults_test.rego
+│       └── guardrails.rego / guardrails_test.rego
 │
 ├── tests/
 │   ├── test_cases.json     ← Generated + reviewed test cases
+│   ├── test_policy.py      ← Policy pipeline unit tests
 │   └── results/            ← Timestamped eval reports (JSON)
 │
 └── context/
@@ -65,9 +93,13 @@ intent-based-provisioner/
 ## Prerequisites
 
 ```bash
+# LLM (required)
 brew install ollama
 ollama pull qwen3:4b
 brew services start ollama
+
+# OPA (optional — enrichment/validation gracefully skipped if unavailable)
+brew install opa
 ```
 
 ---
@@ -134,10 +166,14 @@ The platform has two execution modes toggled with the `mode` command:
                name        = web-server1
                cpu         = 4
                environment = prod
-               ram_gb      = 8        (default)
-               storage_gb  = 50       (default)
-               os          = ubuntu-22.04  (default)
-               region      = ap-south-1   (default)
+               ram_gb      = 8              (default)
+               storage_gb  = 50             (default)
+               os          = ubuntu-22.04   (default)
+               region      = ap-south-1     (default)
+               encryption  = aes-256        (policy)
+               backup_policy = daily        (policy)
+               monitoring  = enabled        (policy)
+               instance_type = c5.xlarge    (policy)
 
   ── Execution ────────────────────────────────────────
   🔵 [DRY-RUN] compute.provision
@@ -185,6 +221,58 @@ The platform handles multi-action requests in a single call:
   ── Execution ────────────────────────────────────────
   Executing 2 intents sequentially...
 ```
+
+---
+
+## OPA Policy Layer
+
+The platform integrates with [Open Policy Agent (OPA)](https://www.openpolicyagent.org/) for a two-pass policy check between classification and execution:
+
+```
+classify → apply_defaults → policy_enrich → policy_validate → enforce_confirmation → execute
+```
+
+### Policy Enrichment (Pass 1)
+
+After defaults are applied, OPA is queried for org-standard values that the user didn't specify. These fill in fields like encryption, backup policies, instance sizing, and monitoring — varying by environment (e.g., prod gets `c5.xlarge`, staging gets `t3.medium`).
+
+**Param precedence**: user-specified > policy enrichment > config/defaults.json
+
+Each enriched field is tracked with provenance (`policy_applied`) and displayed with a `(policy)` tag in the REPL.
+
+### Policy Validation (Pass 2)
+
+After enrichment, fully-assembled params are validated against hard guardrails:
+
+| Domain | Example Guardrails |
+|---|---|
+| **compute** | Allowed regions, max CPU/RAM/storage, prod must use AES-256 encryption |
+| **k8s** | Max replica count, prod requires 2+ replicas, no delete in prod default namespace |
+| **db** | Allowed engines (postgres/mysql/mariadb), prod must have multi-AZ + deletion protection |
+| **net** | No SSH/RDP open to 0.0.0.0/0, internet-facing LBs require WAF |
+
+Violations **block execution**. Warnings are displayed but don't block.
+
+### Running OPA
+
+```bash
+# Start OPA server with the bundled policies
+opa run --server policies/
+
+# Run Rego unit tests
+opa test policies/
+```
+
+### Graceful Fallback
+
+If OPA is unavailable, the platform logs a notice and continues without enrichment/validation. The startup banner shows OPA status:
+
+```
+  OPA Policy : CONNECTED ✓        ← OPA is running
+  OPA Policy : UNAVAILABLE (...)  ← skipped, execution proceeds normally
+```
+
+Configuration is in `config/policy_config.json` (endpoint, timeout, fallback behavior).
 
 ---
 
@@ -240,6 +328,15 @@ Sample output:
 
 Intents below 80% are flagged with ⚠ for prompt or taxonomy improvement.
 
+### Run policy tests
+```bash
+# Rego unit tests (requires OPA CLI)
+opa test policies/
+
+# Python policy pipeline tests
+python3 tests/test_policy.py
+```
+
 ---
 
 ## Roadmap
@@ -251,6 +348,7 @@ Intents below 80% are flagged with ⚠ for prompt or taxonomy improvement.
 - [x] Conversation context with pronoun resolution
 - [x] Synthetic test generator + evaluation harness
 - [x] Execution layer with stub handlers (dry-run + simulate modes)
+- [x] OPA policy integration (enrichment + validation with Rego policies)
 - [ ] FastAPI service wrapper
 - [ ] Fine-tuning on domain-specific utterances
 - [ ] Two-stage router for scaling to 100+ intents
