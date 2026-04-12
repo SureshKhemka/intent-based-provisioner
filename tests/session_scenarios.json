@@ -1,0 +1,949 @@
+{
+  "session_scenarios": [
+    {
+      "id": "scenario_01",
+      "name": "New Microservice Launch",
+      "description": "Developer sets up full infrastructure for a new payments microservice including compute, networking, database, caching, and monitoring",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Spin up a 4 core 16GB VM called payments-api in us-east-1 prod",
+          "expected_intents": ["compute.provision"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Open ports 443 and 8080 on it and create a DNS record payments-api.internal.corp pointing to its IP",
+          "expected_intents": ["net.firewall", "net.dns_create"],
+          "compound": true,
+          "notes": "Pronoun 'it' refers to payments-api VM"
+        },
+        {
+          "turn": 3,
+          "user_input": "I need a postgres database for it, 50GB, db.r5.large in prod",
+          "expected_intents": ["db.provision"],
+          "compound": false,
+          "notes": "Pronoun 'it' refers to payments-api service"
+        },
+        {
+          "turn": 4,
+          "user_input": "Also set up a Redis cache cluster, 2 nodes, 4GB each, same region",
+          "expected_intents": ["cache.provision"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 5,
+          "user_input": "Put a load balancer in front of payments-api and attach an SSL cert for payments.corp.com",
+          "expected_intents": ["net.lb_provision", "cert.provision"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 6,
+          "user_input": "Create a CPU > 80% alert and a p99 latency dashboard for the payments service",
+          "expected_intents": ["monitor.create_alert", "monitor.create_dashboard"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 7,
+          "user_input": "whats the status of everything we just set up?",
+          "expected_intents": ["compute.status", "db.status", "cache.status", "net.status"],
+          "compound": true,
+          "notes": "Casual tone, checking all provisioned resources"
+        }
+      ]
+    },
+    {
+      "id": "scenario_02",
+      "name": "Data Platform Setup",
+      "description": "Data engineer builds out a data platform with warehouse, data lake, ETL pipelines, and proper access controls",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Provision a new data warehouse, 4 nodes, dc2.large type, in us-west-2",
+          "expected_intents": ["warehouse.provision"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Create a data lake called analytics-lake and an S3 bucket raw-data-landing for ingestion",
+          "expected_intents": ["datalake.create", "storage.bucket_create"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 3,
+          "user_input": "Set up an ETL pipeline that reads from the landing bucket and loads into the warehouse daily",
+          "expected_intents": ["etl.create_pipeline"],
+          "compound": false,
+          "notes": "References 'the landing bucket' and 'the warehouse' from prior turns"
+        },
+        {
+          "turn": 4,
+          "user_input": "Create an IAM role called data-engineer-role with read access to the lake and read-write to the warehouse",
+          "expected_intents": ["iam.create_role"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 5,
+          "user_input": "Attach the AmazonS3ReadOnly policy and our custom WarehouseAdmin policy to that role",
+          "expected_intents": ["iam.attach_policy"],
+          "compound": false,
+          "notes": "Pronoun 'that role' refers to data-engineer-role"
+        },
+        {
+          "turn": 6,
+          "user_input": "set a lifecycle policy on the raw-data-landing bucket — move to glacier after 90 days, delete after 365",
+          "expected_intents": ["storage.lifecycle"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 7,
+          "user_input": "Set permissions on the data lake so only the data-engineer-role and analytics-team can access it",
+          "expected_intents": ["datalake.set_permissions"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 8,
+          "user_input": "Run the ETL pipeline now to test it, and check the warehouse status after",
+          "expected_intents": ["etl.run", "warehouse.status"],
+          "compound": true,
+          "notes": "Pronoun 'it' refers to the ETL pipeline"
+        }
+      ]
+    },
+    {
+      "id": "scenario_03",
+      "name": "Kubernetes Service Deployment",
+      "description": "Platform engineer deploys a containerized service on Kubernetes with service mesh, API gateway, and TLS",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Push the order-svc:v2.1.0 image to our container registry",
+          "expected_intents": ["container.push"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Create a new registry called staging-registry for our QA images",
+          "expected_intents": ["registry.create"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 3,
+          "user_input": "Deploy order-svc v2.1.0 to the prod k8s cluster, 3 replicas, namespace orders",
+          "expected_intents": ["k8s.deploy"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 4,
+          "user_input": "Install istio service mesh on the cluster and configure mTLS for the orders namespace",
+          "expected_intents": ["servicemesh.install", "servicemesh.configure"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 5,
+          "user_input": "Provision a TLS cert for orders.api.corp.com and create an API gateway with that cert",
+          "expected_intents": ["cert.provision", "apigw.create"],
+          "compound": true,
+          "notes": "'that cert' refers to the TLS cert just provisioned"
+        },
+        {
+          "turn": 6,
+          "user_input": "Add a route on the gateway: /v2/orders/* -> order-svc, and deploy it to the prod stage",
+          "expected_intents": ["apigw.update_route", "apigw.deploy_stage"],
+          "compound": true,
+          "notes": "'the gateway' refers to previously created API gateway"
+        },
+        {
+          "turn": 7,
+          "user_input": "Hmm something's wrong, show me the logs for order-svc in prod",
+          "expected_intents": ["k8s.logs"],
+          "compound": false,
+          "notes": "Casual diagnostic request"
+        },
+        {
+          "turn": 8,
+          "user_input": "rollback the deployment to the previous version",
+          "expected_intents": ["k8s.rollback"],
+          "compound": false,
+          "notes": "Implicit reference to order-svc deployment"
+        }
+      ]
+    },
+    {
+      "id": "scenario_04",
+      "name": "Security Hardening",
+      "description": "Security engineer hardens infrastructure with WAF, DDoS protection, secrets management, encryption, and compliance scanning",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Create a WAF with OWASP top 10 rules for our public-facing ALB",
+          "expected_intents": ["waf.create"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Enable DDoS protection on it too, standard tier",
+          "expected_intents": ["ddos.enable"],
+          "compound": false,
+          "notes": "Pronoun 'it' refers to the ALB"
+        },
+        {
+          "turn": 3,
+          "user_input": "Store our stripe API key and twilio auth token as secrets, encrypt both with our prod KMS key",
+          "expected_intents": ["secret.create", "kms.encrypt"],
+          "compound": true,
+          "notes": "Two secrets being created and encrypted"
+        },
+        {
+          "turn": 4,
+          "user_input": "Actually we need a new KMS key for the payments team first, then rotate the existing prod key",
+          "expected_intents": ["kms.create_key", "kms.rotate"],
+          "compound": true,
+          "notes": "Developer corrects themselves"
+        },
+        {
+          "turn": 5,
+          "user_input": "Create a config rule to check that all S3 buckets have encryption enabled",
+          "expected_intents": ["config.create_rule"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 6,
+          "user_input": "Run a full compliance scan on the prod account and create a policy that blocks unencrypted EBS volumes",
+          "expected_intents": ["compliance.run_scan", "compliance.create_policy"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 7,
+          "user_input": "Update the WAF rules to add rate limiting — 1000 req/min per IP",
+          "expected_intents": ["waf.update_rules"],
+          "compound": false,
+          "notes": "References the WAF from turn 1"
+        },
+        {
+          "turn": 8,
+          "user_input": "Rotate the stripe secret we created and check the status of all our KMS keys",
+          "expected_intents": ["secret.rotate", "kms.status"],
+          "compound": true,
+          "notes": "References resources from turn 3"
+        }
+      ]
+    },
+    {
+      "id": "scenario_05",
+      "name": "Incident Response & Recovery",
+      "description": "SRE responds to a production incident, investigates via logs and traces, then recovers from snapshots and backups",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Something's down — query the last 30 minutes of logs for errors in the prod log group",
+          "expected_intents": ["log.query"],
+          "compound": false,
+          "notes": "Urgent tone, incident start"
+        },
+        {
+          "turn": 2,
+          "user_input": "Enable distributed tracing on the payments service and query traces with error status from the last hour",
+          "expected_intents": ["trace.enable", "trace.query"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 3,
+          "user_input": "OK it's the database. Take a snapshot of payments-db right now before we do anything else",
+          "expected_intents": ["snapshot.create"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 4,
+          "user_input": "Restore the database from yesterday's backup, the one tagged daily-2026-04-10",
+          "expected_intents": ["backup.restore"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 5,
+          "user_input": "Copy that snapshot to us-west-2 for safekeeping",
+          "expected_intents": ["snapshot.copy"],
+          "compound": false,
+          "notes": "'that snapshot' refers to the one created in turn 3"
+        },
+        {
+          "turn": 6,
+          "user_input": "Initiate DR failover for the payments service to the secondary region",
+          "expected_intents": ["dr.failover"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 7,
+          "user_input": "Export the last 2 hours of logs to our S3 archive bucket and check the DR plan status",
+          "expected_intents": ["log.export", "dr.status"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 8,
+          "user_input": "Ok we're stable now. Fail back to primary and list all snapshots we created today",
+          "expected_intents": ["dr.failback", "snapshot.list"],
+          "compound": true,
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "scenario_06",
+      "name": "Serverless Event Pipeline",
+      "description": "Developer builds an event-driven serverless pipeline with queues, streams, notifications, and scheduled triggers",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Create an SQS queue called order-events and a Kinesis stream called clickstream-data with 4 shards",
+          "expected_intents": ["queue.create", "stream.create"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Deploy a lambda function order-processor that reads from the order-events queue",
+          "expected_intents": ["serverless.deploy"],
+          "compound": false,
+          "notes": "References queue from turn 1"
+        },
+        {
+          "turn": 3,
+          "user_input": "Create an SNS topic called order-notifications and subscribe the ops team email to it",
+          "expected_intents": ["notification.create_topic", "notification.subscribe"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 4,
+          "user_input": "Set up a scheduler to invoke the lambda every 5 minutes for batch processing",
+          "expected_intents": ["scheduler.create"],
+          "compound": false,
+          "notes": "'the lambda' refers to order-processor"
+        },
+        {
+          "turn": 5,
+          "user_input": "update the lambda config to increase memory to 512MB and timeout to 30s",
+          "expected_intents": ["serverless.update_config"],
+          "compound": false,
+          "notes": "Implicit reference to order-processor lambda"
+        },
+        {
+          "turn": 6,
+          "user_input": "Scale the kinesis stream up to 8 shards, we're getting more traffic than expected",
+          "expected_intents": ["stream.scale"],
+          "compound": false,
+          "notes": "References clickstream-data stream"
+        },
+        {
+          "turn": 7,
+          "user_input": "Publish a test message to the order-notifications topic to verify it's working",
+          "expected_intents": ["notification.publish"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 8,
+          "user_input": "Invoke the order-processor lambda manually with a test payload and check the queue status",
+          "expected_intents": ["serverless.invoke", "queue.status"],
+          "compound": true,
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "scenario_07",
+      "name": "IoT Data Ingestion",
+      "description": "IoT engineer sets up device ingestion pipeline with streaming, storage, batch processing, and monitoring",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Register a new IoT thing called factory-sensor-001 in the us-east-1 registry",
+          "expected_intents": ["iot.create_thing"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Create an IoT rule to route all telemetry from factory sensors to a Kinesis stream",
+          "expected_intents": ["iot.create_rule"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 3,
+          "user_input": "Create the Kinesis stream called sensor-telemetry, 8 shards, and an S3 bucket sensor-archive for long-term storage",
+          "expected_intents": ["stream.create", "storage.bucket_create"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 4,
+          "user_input": "Set up a batch job to aggregate hourly sensor data and write summaries back to S3",
+          "expected_intents": ["batch.create_job"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 5,
+          "user_input": "Create an alert if the stream's IncomingRecords drops below 100/sec — means sensors are offline",
+          "expected_intents": ["monitor.create_alert"],
+          "compound": false,
+          "notes": "References sensor-telemetry stream"
+        },
+        {
+          "turn": 6,
+          "user_input": "Submit the batch job now and upload the sensor firmware config file to the archive bucket",
+          "expected_intents": ["batch.submit", "storage.upload"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 7,
+          "user_input": "Check status of the stream, the batch job, and the IoT devices",
+          "expected_intents": ["stream.status", "batch.status", "iot.status"],
+          "compound": true,
+          "notes": "Status check on all provisioned resources"
+        }
+      ]
+    },
+    {
+      "id": "scenario_08",
+      "name": "ML Model Serving",
+      "description": "ML engineer sets up model training environment and deploys a model to a production endpoint with autoscaling",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Create a Jupyter notebook instance, ml.p3.2xlarge, called fraud-model-dev",
+          "expected_intents": ["notebook.create"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Start the notebook and push the fraud-detector:v3 image to the ML container registry",
+          "expected_intents": ["notebook.start", "registry.push"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 3,
+          "user_input": "Create an ML endpoint called fraud-detection-prod, 2 instances, ml.m5.xlarge",
+          "expected_intents": ["ml.create_endpoint"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 4,
+          "user_input": "Deploy the fraud-detector:v3 model to that endpoint",
+          "expected_intents": ["ml.deploy_model"],
+          "compound": false,
+          "notes": "'that endpoint' refers to fraud-detection-prod"
+        },
+        {
+          "turn": 5,
+          "user_input": "Set up autoscaling on the endpoint — min 2, max 10, target 70% CPU utilization",
+          "expected_intents": ["autoscale.create"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 6,
+          "user_input": "Pull the latest base image from our container registry to check something",
+          "expected_intents": ["container.pull"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 7,
+          "user_input": "List all container images tagged with fraud-detector and check the ML endpoint status",
+          "expected_intents": ["container.list", "ml.status"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 8,
+          "user_input": "Stop the notebook instance, we're done training for now",
+          "expected_intents": ["notebook.stop"],
+          "compound": false,
+          "notes": "References fraud-model-dev notebook"
+        }
+      ]
+    },
+    {
+      "id": "scenario_09",
+      "name": "Network Infrastructure Build",
+      "description": "Network engineer builds out VPC, subnets, VPN, NAT gateway, and DNS infrastructure from scratch",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Create a new VPC called prod-network, CIDR 10.0.0.0/16, in us-east-1",
+          "expected_intents": ["vpc.create"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Add three subnets to it: public-a 10.0.1.0/24, public-b 10.0.2.0/24, and private-a 10.0.10.0/24",
+          "expected_intents": ["subnet.create"],
+          "compound": false,
+          "notes": "Pronoun 'it' refers to prod-network VPC. Multiple subnets in one request."
+        },
+        {
+          "turn": 3,
+          "user_input": "Provision a NAT gateway in the public-a subnet for the private subnet's internet access",
+          "expected_intents": ["nat.provision"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 4,
+          "user_input": "Set up a site-to-site VPN from this VPC to our on-prem network 192.168.0.0/16",
+          "expected_intents": ["vpn.create"],
+          "compound": false,
+          "notes": "'this VPC' refers to prod-network"
+        },
+        {
+          "turn": 5,
+          "user_input": "Peer the prod VPC with the staging VPC in us-west-2",
+          "expected_intents": ["vpc.peer"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 6,
+          "user_input": "Create DNS records: api.prod.internal -> 10.0.1.50, admin.prod.internal -> 10.0.1.51",
+          "expected_intents": ["net.dns_create"],
+          "compound": false,
+          "notes": "Multiple DNS records in one request"
+        },
+        {
+          "turn": 7,
+          "user_input": "Whats the status of the VPC, subnets, and VPN connection?",
+          "expected_intents": ["vpc.status", "subnet.status", "vpn.status"],
+          "compound": true,
+          "notes": "Casual tone with missing apostrophe"
+        },
+        {
+          "turn": 8,
+          "user_input": "Also check NAT gw status and set up a firewall rule to block all inbound traffic on the private subnet except from the VPN CIDR",
+          "expected_intents": ["nat.status", "net.firewall"],
+          "compound": true,
+          "notes": "Abbreviation 'gw' for gateway"
+        }
+      ]
+    },
+    {
+      "id": "scenario_10",
+      "name": "Content Delivery & Web App",
+      "description": "Web developer sets up CDN, SSL certificates, static hosting, WAF protection, and email for a marketing site",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Create an S3 bucket called marketing-site-assets for static website hosting",
+          "expected_intents": ["storage.bucket_create"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Provision a TLS cert for marketing.corp.com and *.marketing.corp.com",
+          "expected_intents": ["cert.provision"],
+          "compound": false,
+          "notes": "Wildcard cert"
+        },
+        {
+          "turn": 3,
+          "user_input": "Create a CloudFront CDN distribution pointing to the assets bucket, attach the cert we just created",
+          "expected_intents": ["cdn.create"],
+          "compound": false,
+          "notes": "References bucket from turn 1 and cert from turn 2"
+        },
+        {
+          "turn": 4,
+          "user_input": "Put a WAF in front of the CDN with bot protection and SQL injection rules",
+          "expected_intents": ["waf.create"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 5,
+          "user_input": "Configure SES email for marketing.corp.com and verify the domain",
+          "expected_intents": ["email.configure", "email.verify_domain"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 6,
+          "user_input": "Upload the new homepage bundle to the assets bucket",
+          "expected_intents": ["storage.upload"],
+          "compound": false,
+          "notes": "References marketing-site-assets bucket"
+        },
+        {
+          "turn": 7,
+          "user_input": "Invalidate the CDN cache for /* so the new content goes live immediately",
+          "expected_intents": ["cdn.invalidate"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 8,
+          "user_input": "Send a test email from no-reply@marketing.corp.com to verify everything works",
+          "expected_intents": ["email.send"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 9,
+          "user_input": "Check the status of the CDN and the cert — need to make sure renewal is on track",
+          "expected_intents": ["cdn.status", "cert.status"],
+          "compound": true,
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "scenario_11",
+      "name": "Cost Optimization & Cleanup",
+      "description": "DevOps engineer audits costs, cleans up unused resources, deregisters old images, and manages tagging",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Pull the cost breakdown for the last month, grouped by service",
+          "expected_intents": ["meta.cost"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Check our quota usage — are we close to any limits?",
+          "expected_intents": ["meta.quota"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 3,
+          "user_input": "List all running VMs and find any that have been idle for over 30 days",
+          "expected_intents": ["compute.list"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 4,
+          "user_input": "Terminate the dev-test-old and staging-bench-2 instances, they haven't been used in months",
+          "expected_intents": ["compute.terminate"],
+          "compound": false,
+          "notes": "Multiple instances terminated"
+        },
+        {
+          "turn": 5,
+          "user_input": "Detach and delete the volumes that were attached to those instances",
+          "expected_intents": ["volume.detach", "volume.delete"],
+          "compound": true,
+          "notes": "'those instances' refers to terminated VMs"
+        },
+        {
+          "turn": 6,
+          "user_input": "Delete all snapshots older than 90 days and deregister unused AMIs from last quarter",
+          "expected_intents": ["snapshot.delete", "image.deregister"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 7,
+          "user_input": "Tag everything in the prod account with cost-center:engineering and env:prod",
+          "expected_intents": ["meta.tag"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 8,
+          "user_input": "Pull the audit log for all delete operations from today so I have a record",
+          "expected_intents": ["meta.audit_log"],
+          "compound": false,
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "scenario_12",
+      "name": "Database Migration",
+      "description": "DBA migrates a production database to a new instance with backups, secrets rotation, and monitoring",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Create a full backup of the orders-db production database right now",
+          "expected_intents": ["db.backup"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Provision a new Postgres RDS instance, db.r6g.2xlarge, 500GB, in us-east-1 called orders-db-v2",
+          "expected_intents": ["db.provision"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 3,
+          "user_input": "Create a DMS transfer job to migrate data from orders-db to orders-db-v2 with CDC enabled",
+          "expected_intents": ["transfer.create_job"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 4,
+          "user_input": "Start the transfer job and set up a monitoring alert for replication lag > 5 seconds",
+          "expected_intents": ["transfer.start", "monitor.create_alert"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 5,
+          "user_input": "Rotate the database credentials in secrets manager for both the old and new DB",
+          "expected_intents": ["secret.rotate"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 6,
+          "user_input": "Store the new connection string as a secret called orders-db-v2-connstring",
+          "expected_intents": ["secret.create"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 7,
+          "user_input": "Check the status of the transfer job and the new database",
+          "expected_intents": ["transfer.status", "db.status"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 8,
+          "user_input": "Migration looks good. Grant read access to the analytics team on the new DB and delete the transfer job",
+          "expected_intents": ["db.access", "transfer.delete_job"],
+          "compound": true,
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "scenario_13",
+      "name": "Search & Analytics Platform",
+      "description": "Data engineer builds a search and analytics stack with Elasticsearch, data warehouse, ETL, logging, and data lake integration",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Create an Elasticsearch cluster called product-search, 3 nodes, m5.xlarge, in prod",
+          "expected_intents": ["search.create"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Provision a Redshift warehouse called analytics-wh, 2 nodes, for the reporting team",
+          "expected_intents": ["warehouse.provision"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 3,
+          "user_input": "Create an ETL pipeline to sync product catalog data from the warehouse to the search cluster nightly",
+          "expected_intents": ["etl.create_pipeline"],
+          "compound": false,
+          "notes": "References resources from turns 1 and 2"
+        },
+        {
+          "turn": 4,
+          "user_input": "Create a log group called search-access-logs and a data lake called analytics-raw",
+          "expected_intents": ["log.create_group", "datalake.create"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 5,
+          "user_input": "Reindex the product-search cluster after the initial data load",
+          "expected_intents": ["search.reindex"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 6,
+          "user_input": "Run a test query against the warehouse to validate the data and check search cluster status",
+          "expected_intents": ["warehouse.query", "search.status"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 7,
+          "user_input": "Query the search access logs for any 5xx errors in the last 24 hours",
+          "expected_intents": ["log.query"],
+          "compound": false,
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "scenario_14",
+      "name": "Workflow Automation",
+      "description": "DevOps engineer sets up automated workflows with step functions, schedulers, batch jobs, notifications, and email alerts",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Create a workflow called nightly-data-pipeline with 3 steps: extract, transform, load",
+          "expected_intents": ["workflow.create"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Create a scheduler to run it every night at 2am UTC",
+          "expected_intents": ["scheduler.create"],
+          "compound": false,
+          "notes": "Pronoun 'it' refers to the workflow"
+        },
+        {
+          "turn": 3,
+          "user_input": "Set up a batch job for the heavy transform step — needs 16 vCPUs and 32GB memory",
+          "expected_intents": ["batch.create_job"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 4,
+          "user_input": "Create an SNS topic pipeline-alerts and subscribe the oncall team's email and the ops Slack webhook",
+          "expected_intents": ["notification.create_topic", "notification.subscribe"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 5,
+          "user_input": "Configure email notifications so failures send to oncall@corp.com with details",
+          "expected_intents": ["email.configure"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 6,
+          "user_input": "Execute the workflow manually right now to test the whole thing end to end",
+          "expected_intents": ["workflow.execute"],
+          "compound": false,
+          "notes": "References nightly-data-pipeline workflow"
+        },
+        {
+          "turn": 7,
+          "user_input": "Disable the scheduler temporarily — we need to fix a bug before it runs tonight",
+          "expected_intents": ["scheduler.disable"],
+          "compound": false,
+          "notes": "Pronoun 'it' refers to the scheduler"
+        },
+        {
+          "turn": 8,
+          "user_input": "Check workflow status and re-enable the scheduler once I'm confident it's fixed",
+          "expected_intents": ["workflow.status", "scheduler.enable"],
+          "compound": true,
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "scenario_15",
+      "name": "Disaster Recovery Drill",
+      "description": "SRE team conducts a DR drill, testing backup restoration, failover procedures, and data recovery across volumes and filesystems",
+      "turns": [
+        {
+          "turn": 1,
+          "user_input": "Create a DR plan called prod-dr-plan covering the payments and orders services in us-east-1",
+          "expected_intents": ["dr.create_plan"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 2,
+          "user_input": "Create a backup plan for the payments DB with daily snapshots and 30 day retention",
+          "expected_intents": ["backup.create_plan"],
+          "compound": false,
+          "notes": ""
+        },
+        {
+          "turn": 3,
+          "user_input": "Take a snapshot of the payments-data volume and the orders-data volume right now",
+          "expected_intents": ["volume.snapshot"],
+          "compound": false,
+          "notes": "Multiple volumes snapshotted"
+        },
+        {
+          "turn": 4,
+          "user_input": "Create a new EBS volume from the payments snapshot in us-west-2 and attach it to the DR recovery instance",
+          "expected_intents": ["volume.create", "volume.attach"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 5,
+          "user_input": "Create an EFS filesystem called dr-shared-data and mount it on the recovery instances",
+          "expected_intents": ["filesystem.create", "filesystem.mount"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 6,
+          "user_input": "Run a test failover using the DR plan we created",
+          "expected_intents": ["dr.test"],
+          "compound": false,
+          "notes": "References prod-dr-plan from turn 1"
+        },
+        {
+          "turn": 7,
+          "user_input": "Run the backup plan now and restore from the latest backup to verify data integrity",
+          "expected_intents": ["backup.run", "backup.restore"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 8,
+          "user_input": "Restore the orders snapshot to a new volume to verify it's good",
+          "expected_intents": ["snapshot.restore"],
+          "compound": false,
+          "notes": "References orders-data snapshot from turn 3"
+        },
+        {
+          "turn": 9,
+          "user_input": "Check status of the filesystem and all volumes, then resize the DR filesystem to 500GB",
+          "expected_intents": ["filesystem.status", "volume.status", "filesystem.resize"],
+          "compound": true,
+          "notes": ""
+        },
+        {
+          "turn": 10,
+          "user_input": "Good drill. Check the DR plan status one more time and delete the test volumes we created",
+          "expected_intents": ["dr.status", "volume.delete"],
+          "compound": true,
+          "notes": "Cleanup after drill"
+        }
+      ]
+    }
+  ]
+}
