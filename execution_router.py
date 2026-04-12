@@ -1,7 +1,22 @@
 import json
 from datetime import datetime
 
-from handlers import compute_handler, k8s_handler, db_handler, net_handler
+from handlers import (
+    compute_handler, k8s_handler, db_handler, net_handler,
+    cache_handler, storage_handler, queue_handler, stream_handler,
+    serverless_handler, container_handler, iam_handler,
+    vpc_handler, subnet_handler, vpn_handler, nat_handler,
+    waf_handler, ddos_handler, cdn_handler, cert_handler,
+    secret_handler, kms_handler, volume_handler, filesystem_handler,
+    backup_handler, snapshot_handler, autoscale_handler,
+    apigw_handler, servicemesh_handler, registry_handler,
+    monitor_handler, log_handler, trace_handler,
+    notification_handler, email_handler, workflow_handler,
+    scheduler_handler, batch_handler, etl_handler,
+    warehouse_handler, datalake_handler, search_handler,
+    ml_handler, notebook_handler, iot_handler, transfer_handler,
+    config_handler, compliance_handler, image_handler, dr_handler,
+)
 
 # ── Mode toggle ───────────────────────────────────────────────────────────────
 # True  → dry-run: describe what would happen, no side effects
@@ -11,10 +26,55 @@ DRY_RUN = True
 
 # ── Domain → handler mapping ──────────────────────────────────────────────────
 HANDLER_MAP = {
-    "compute": compute_handler,
-    "k8s":     k8s_handler,
-    "db":      db_handler,
-    "net":     net_handler,
+    "compute":     compute_handler,
+    "k8s":         k8s_handler,
+    "db":          db_handler,
+    "net":         net_handler,
+    "cache":       cache_handler,
+    "storage":     storage_handler,
+    "queue":       queue_handler,
+    "stream":      stream_handler,
+    "serverless":  serverless_handler,
+    "container":   container_handler,
+    "iam":         iam_handler,
+    "vpc":         vpc_handler,
+    "subnet":      subnet_handler,
+    "vpn":         vpn_handler,
+    "nat":         nat_handler,
+    "waf":         waf_handler,
+    "ddos":        ddos_handler,
+    "cdn":         cdn_handler,
+    "cert":        cert_handler,
+    "secret":      secret_handler,
+    "kms":         kms_handler,
+    "volume":      volume_handler,
+    "filesystem":  filesystem_handler,
+    "backup":      backup_handler,
+    "snapshot":    snapshot_handler,
+    "autoscale":   autoscale_handler,
+    "apigw":       apigw_handler,
+    "servicemesh": servicemesh_handler,
+    "registry":    registry_handler,
+    "monitor":     monitor_handler,
+    "log":         log_handler,
+    "trace":       trace_handler,
+    "notification": notification_handler,
+    "email":       email_handler,
+    "workflow":    workflow_handler,
+    "scheduler":   scheduler_handler,
+    "batch":       batch_handler,
+    "etl":         etl_handler,
+    "warehouse":   warehouse_handler,
+    "datalake":    datalake_handler,
+    "search":      search_handler,
+    "ml":          ml_handler,
+    "notebook":    notebook_handler,
+    "iot":         iot_handler,
+    "transfer":    transfer_handler,
+    "config":      config_handler,
+    "compliance":  compliance_handler,
+    "image":       image_handler,
+    "dr":          dr_handler,
 }
 
 
