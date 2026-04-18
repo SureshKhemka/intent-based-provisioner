@@ -7,6 +7,10 @@ from execution_router import ExecutionRouter
 from policy_enricher import enrich as policy_enrich
 from policy_validator import validate as policy_validate, print_policy_result
 from policy_engine import health_check, load_policy_config
+from judge import (
+    load_judge_config, evaluate as judge_evaluate,
+    log_evaluation as judge_log, print_evaluation as judge_print,
+)
 
 CONTEXT_DIR = os.path.join(os.path.dirname(__file__), "context")
 
@@ -94,6 +98,7 @@ def print_help(intent_names: list, dry_run: bool):
     print(f"    switch    — switch to a different team")
     print(f"    mode      — toggle dry-run / simulate mode")
     print(f"    classify  — toggle classify-only (no execution)")
+    print(f"    judge     — toggle judge LLM evaluation")
     print(f"    quit      — exit")
 
 
@@ -107,6 +112,10 @@ def main():
     policy_config  = load_policy_config()
     opa_available  = health_check(policy_config)
 
+    judge_config   = load_judge_config()
+    judge_enabled  = judge_config.get("enabled", False)
+    judge_model    = judge_config.get("model", "n/a")
+
     print("=" * 60)
     print("  Infrastructure Intent-Based Provisioner")
     print(f"  Model      : {model_name} via Ollama")
@@ -116,6 +125,10 @@ def main():
         print(f"  OPA Policy : CONNECTED ✓")
     else:
         print(f"  OPA Policy : UNAVAILABLE (enrichment/validation will be skipped)")
+    if judge_enabled:
+        print(f"  Judge LLM  : {judge_model} ✓  (type 'judge' to toggle)")
+    else:
+        print(f"  Judge LLM  : DISABLED  (type 'judge' to toggle)")
     print(f"  Type 'help' for all commands")
     print("=" * 60)
 
@@ -170,6 +183,13 @@ def main():
             print(f"\n  Classify-only mode: {state}")
             continue
 
+        if user_input.lower() == "judge":
+            judge_enabled = not judge_enabled
+            judge_config["enabled"] = judge_enabled
+            state = f"ON ({judge_model})" if judge_enabled else "OFF"
+            print(f"\n  ⚖️  Judge LLM: {state}")
+            continue
+
         try:
             # Step 1 — resolve references
             resolved = context.resolve_references(user_input)
@@ -199,6 +219,15 @@ def main():
                 validation = item.get("policy_validation", {})
                 if not validation.get("allow", True):
                     blocked = True
+
+            # Step 6b — judge LLM evaluation
+            if judge_enabled:
+                evaluation = judge_evaluate(
+                    user_input, result, intent_names,
+                    confirmation, judge_config,
+                )
+                judge_print(evaluation)
+                judge_log(user_input, result, evaluation, judge_config)
 
             # Step 7 — execute (skip if policy blocked)
             if blocked:

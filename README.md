@@ -1,6 +1,6 @@
 # Intent-Based Infrastructure Provisioner
 
-A local LLM-powered intent classifier and execution engine for infrastructure provisioning, built on Ollama + Qwen3:4b. Developers describe what they want in natural language — the platform classifies the intent, extracts parameters, and executes (or simulates) the right infrastructure action.
+A local LLM-powered intent classifier and execution engine for infrastructure provisioning. Developers describe what they want in natural language — the platform classifies the intent, extracts parameters, enriches with org policies, validates guardrails, and executes (or simulates) the right infrastructure action. A separate Judge LLM evaluates every classification for correctness and safety. Fully local: Ollama, no cloud dependencies.
 
 ---
 
@@ -9,8 +9,11 @@ A local LLM-powered intent classifier and execution engine for infrastructure pr
 ```
 Developer types:  "spin up a 4 core VM in prod and open port 8080 on it"
                                     ↓
-                          Intent Classifier
-                     (Qwen3:4b via Ollama, no-think mode)
+                        ┌───────────────────────┐
+                        │   Intent Classifier   │
+                        │  (configurable model   │
+                        │   via Ollama)          │
+                        └───────────┬───────────┘
                                     ↓
               ┌─────────────────────────────────────────┐
               │  intents: [compute.provision, net.firewall]
@@ -25,6 +28,18 @@ Developer types:  "spin up a 4 core VM in prod and open port 8080 on it"
                                     ↓
                       Policy Validation (OPA guardrails)
                    checks: regions, limits, prod requirements
+                                    ↓
+              ┌─────────────────────────────────────────┐
+              │         ⚖️  Judge LLM Evaluation         │
+              │  (separate model scores classification)  │
+              │                                         │
+              │  Intent correctness      [██████████] 10│
+              │  Slot extraction         [████████░░]  8│
+              │  Confidence calibration  [█████████░]  9│
+              │  Safety flags            [██████████] 10│
+              │  Verdict: ✅ PASS                        │
+              └─────────────────────────────────────────┘
+                       ↓ logged to JSONL          ↓ printed to stdio
                                     ↓
                       Confirmation Gate + Execution Router
                                     ↓
@@ -44,45 +59,51 @@ Developer types:  "spin up a 4 core VM in prod and open port 8080 on it"
 intent-based-provisioner/
 ├── interactive.py          ← Main entry point — interactive REPL
 ├── classify.py             ← Core classification module
+├── judge.py                ← Judge LLM — evaluates classifier output (4 dimensions)
 ├── context_manager.py      ← Per-team session context (persisted to disk)
-├── execution_router.py     ← Routes intents to handlers, confirmation gate, audit log
+├── execution_router.py     ← Routes intents to 49 domain handlers, confirmation gate, audit
 ├── generate_tests.py       ← Synthetic test case generator
+├── generate_handlers.py    ← Bulk handler generator for all domains
 ├── evaluate.py             ← Evaluation harness (accuracy + latency metrics)
 │
-├── handlers/               ← Execution stub handlers (one per domain)
+├── handlers/               ← Execution stub handlers (one per domain, 49 total)
 │   ├── compute_handler.py  ← compute.provision/terminate/resize/start_stop/status/list
 │   ├── k8s_handler.py      ← k8s.deploy/scale/rollback/status/logs/exec/delete
 │   ├── db_handler.py       ← db.provision/delete/resize/backup/restore/access/status
-│   └── net_handler.py      ← net.dns_create/dns_delete/lb_provision/lb_update/firewall/status
+│   ├── net_handler.py      ← net.dns_create/dns_delete/lb_provision/lb_update/firewall/status
+│   ├── cache_handler.py    ← cache.provision/delete/resize/flush/status
+│   ├── storage_handler.py  ← storage.bucket_create/bucket_delete/upload/lifecycle/status
+│   ├── ...                 ← 43 more domain handlers (iam, vpc, waf, cdn, ml, iot, dr, etc.)
+│   └── dr_handler.py       ← dr.create_plan/failover/failback/test/status
 │
 ├── policy_engine.py        ← OPA REST client with health check + graceful fallback
 ├── policy_enricher.py      ← Queries OPA defaults, merges org-standard values into params
 ├── policy_validator.py     ← Queries OPA guardrails, blocks execution on violations
 │
 ├── config/                 ← All configuration — no code changes needed
-│   ├── taxonomy.json       ← 29 intents + descriptions
+│   ├── taxonomy.json       ← 230 intents across 50 domains
 │   ├── defaults.json       ← Default params per intent
 │   ├── confirmation.json   ← Which intents need confirmation + conditions
+│   ├── model_config.json   ← Classifier LLM model, endpoint, temperature
+│   ├── judge_config.json   ← Judge LLM model, endpoint, scoring dimensions, log path
 │   └── policy_config.json  ← OPA endpoint, timeout, policy path mappings
 │
 ├── policies/               ← OPA Rego policies (per domain)
 │   ├── compute/
 │   │   ├── defaults.rego / defaults_test.rego
 │   │   └── guardrails.rego / guardrails_test.rego
-│   ├── k8s/
-│   │   ├── defaults.rego / defaults_test.rego
-│   │   └── guardrails.rego / guardrails_test.rego
-│   ├── db/
-│   │   ├── defaults.rego / defaults_test.rego
-│   │   └── guardrails.rego / guardrails_test.rego
-│   └── net/
-│       ├── defaults.rego / defaults_test.rego
-│       └── guardrails.rego / guardrails_test.rego
+│   ├── k8s/ db/ net/       ← Same structure per domain
+│   └── ...
+│
+├── logs/
+│   └── judge_evaluations.jsonl  ← Judge evaluation log (auto-created)
 │
 ├── tests/
-│   ├── test_cases.json     ← Generated + reviewed test cases
-│   ├── test_policy.py      ← Policy pipeline unit tests
-│   └── results/            ← Timestamped eval reports (JSON)
+│   ├── test_cases.json          ← Generated + reviewed test cases
+│   ├── session_scenarios.json   ← 15 multi-turn session test scenarios (120 turns)
+│   ├── e2e_session_test.py      ← End-to-end pipeline test runner
+│   ├── test_policy.py           ← Policy pipeline unit tests
+│   └── results/                 ← Timestamped eval reports (JSON)
 │
 └── context/
     └── <team>.json         ← Persisted session context per team (auto-created)
@@ -95,7 +116,8 @@ intent-based-provisioner/
 ```bash
 # LLM (required)
 brew install ollama
-ollama pull qwen3:4b
+ollama pull qwen3:4b       # classifier (or any model — configurable)
+ollama pull gemma4:31b     # judge (optional — configurable, can be any model)
 brew services start ollama
 
 # OPA (optional — enrichment/validation gracefully skipped if unavailable)
@@ -116,15 +138,24 @@ You will be prompted for a team name (e.g. `payments`, `platform`, `default`). C
 
 ## Intent Taxonomy
 
-29 intents across 5 domains:
+230 intents across 50 domains:
 
-| Domain | Intents |
-|---|---|
-| **compute** | provision, terminate, resize, start_stop, status, list |
-| **k8s** | deploy, scale, rollback, status, logs, exec, delete |
-| **db** | provision, delete, resize, backup, restore, access, status |
-| **net** | dns_create, dns_delete, lb_provision, lb_update, firewall, status |
-| **meta** | cost, quota, unknown |
+| Domain | Intents | Domain | Intents |
+|---|---|---|---|
+| **compute** | provision, terminate, resize, start_stop, status, list | **cache** | provision, delete, resize, flush, status |
+| **k8s** | deploy, scale, rollback, status, logs, exec, delete | **storage** | bucket_create, bucket_delete, upload, lifecycle, status |
+| **db** | provision, delete, resize, backup, restore, access, status | **queue** | create, delete, purge, status |
+| **net** | dns_create, dns_delete, lb_provision, lb_update, firewall, status | **serverless** | deploy, delete, invoke, status |
+| **iam** | create_role, delete_role, attach_policy, create_user, status | **vpc** | create, delete, peer, status |
+| **waf** | create, delete, add_rule, status | **cdn** | create, delete, invalidate, status |
+| **secret** | create, delete, rotate, status | **kms** | create_key, rotate, disable, status |
+| **monitor** | create_alert, delete_alert, create_dashboard, status | **log** | create_group, delete_group, query, status |
+| **ml** | create_endpoint, delete_endpoint, deploy_model, status | **iot** | create_thing, delete_thing, create_rule, status |
+| **dr** | create_plan, failover, failback, test, status | **meta** | cost, quota, unknown |
+
+Plus 30 more domains: stream, container, subnet, vpn, nat, ddos, cert, volume, filesystem, backup, snapshot, autoscale, apigw, servicemesh, registry, trace, notification, email, workflow, scheduler, batch, etl, warehouse, datalake, search, notebook, transfer, config, compliance, image.
+
+All intents and descriptions are defined in `config/taxonomy.json`.
 
 ---
 
@@ -147,6 +178,7 @@ The platform has two execution modes toggled with the `mode` command:
 |---|---|
 | `mode` | Toggle between DRY-RUN 🔵 and SIMULATE 🟢 |
 | `classify` | Toggle classify-only mode (skips execution) |
+| `judge` | Toggle Judge LLM evaluation on/off |
 | `help` | Show all intents and commands |
 | `history` | Show last 10 turns for current team |
 | `clear` | Clear session context for current team |
@@ -276,6 +308,98 @@ Configuration is in `config/policy_config.json` (endpoint, timeout, fallback beh
 
 ---
 
+## Judge LLM
+
+A separate local LLM acts as a judge to evaluate the classifier's output on every request. The judge runs after policy enrichment/validation and before execution, providing real-time quality feedback without blocking the pipeline.
+
+### Pipeline Position
+
+```
+classify → apply_defaults → policy_enrich → policy_validate → ⚖️ judge → confirm → execute
+```
+
+The judge evaluates the **fully enriched, validated classification** — so it sees what execution will actually receive.
+
+### Four Scoring Dimensions (each 1–10)
+
+| Dimension | What it checks |
+|---|---|
+| **Intent Correctness** | Did the classifier pick the right intent(s) from the taxonomy? Correct domain, correct action, no missing or hallucinated intents. |
+| **Slot Extraction** | Are the extracted parameters complete and accurate? All entities captured (name, region, size)? Values correct vs defaults? |
+| **Confidence Calibration** | Is the stated confidence reasonable? Clear requests should be 0.85+, ambiguous ones lower. Penalizes over/under-confidence. |
+| **Safety Flags** | Does `requires_confirmation` match the safety rules? Destructive and prod-targeting ops must be flagged. |
+
+### Verdicts
+
+- **PASS** — all scores ≥ 7
+- **WARN** — any score 4–6 (classification usable but has issues)
+- **FAIL** — any score ≤ 3 (classification is unreliable)
+
+### Example Output
+
+```
+  ⚖️  Judge Evaluation (gemma4:31b, 8.42s)
+  ──────────────────────────────────────────────────────
+  Intent Correctness         [██████████] 10/10
+                               Correctly identified 'compute.provision' for VM request.
+  Slot Extraction            [████████░░]  8/10
+                               Captured name, region, and CPU correctly. RAM mapped to default.
+  Confidence Calibration     [██████████] 10/10
+                               Unambiguous request; 0.95 confidence is appropriate.
+  Safety Flags               [██████████] 10/10
+                               Correctly flagged requires_confirmation for prod environment.
+  ──────────────────────────────────────────────────────
+  Verdict : ✅ PASS
+  Summary : Classification is accurate with correct safety flags for production deployment.
+```
+
+### Logging
+
+Every evaluation is appended to `logs/judge_evaluations.jsonl` as a structured record:
+
+```json
+{
+  "timestamp": "2026-04-18T12:03:17.114890Z",
+  "user_input": "Spin up a 4 core 16GB VM called payments-api in us-east-1 for production",
+  "classifier_output": { "intents": [...], "compound": false, "latency_s": 2.1 },
+  "judge_evaluation": {
+    "intent_correctness": { "score": 10, "rationale": "..." },
+    "slot_extraction": { "score": 8, "rationale": "..." },
+    "confidence_calibration": { "score": 10, "rationale": "..." },
+    "safety_flags": { "score": 10, "rationale": "..." },
+    "overall_verdict": "pass",
+    "summary": "...",
+    "model": "gemma4:31b",
+    "latency_s": 8.42
+  }
+}
+```
+
+### Configuration
+
+Edit `config/judge_config.json`:
+
+```json
+{
+  "enabled": true,
+  "model": "gemma4:31b",
+  "ollama_endpoint": "http://localhost:11434",
+  "temperature": 0.1,
+  "think": false,
+  "log_file": "logs/judge_evaluations.jsonl"
+}
+```
+
+- **`enabled`** — toggle judge on/off (also togglable at runtime with the `judge` command)
+- **`model`** — any Ollama model (use a different model than the classifier for independent evaluation)
+- **`log_file`** — path to the JSONL evaluation log
+
+### Graceful Fallback
+
+If the judge model is unavailable (Ollama down, model not pulled), the error is printed inline and logged — execution continues normally. The judge never blocks the pipeline.
+
+---
+
 ## Confirmation Rules
 
 Defined in `config/confirmation.json`. Two rule types:
@@ -291,6 +415,12 @@ Confirmation is enforced in Python — not just prompted to the model — so it 
 
 ### Adding a new intent
 Edit `config/taxonomy.json` — add one line. No code changes needed.
+
+### Changing the classifier model
+Edit `config/model_config.json` — change `"model"` to any Ollama model name.
+
+### Changing the judge model
+Edit `config/judge_config.json` — change `"model"` or set `"enabled": false` to disable.
 
 ### Changing defaults
 Edit `config/defaults.json`. Takes effect on next restart.
@@ -341,14 +471,17 @@ python3 tests/test_policy.py
 
 ## Roadmap
 
-- [x] Intent taxonomy (29 intents, config-driven)
-- [x] Core classifier (Qwen3:4b, no-think mode, compound detection)
+- [x] Intent taxonomy (230 intents across 50 domains, config-driven)
+- [x] Core classifier (configurable model via Ollama, compound detection)
 - [x] Defaults and confirmation rules (JSON config)
 - [x] Interactive REPL with team context
 - [x] Conversation context with pronoun resolution
 - [x] Synthetic test generator + evaluation harness
-- [x] Execution layer with stub handlers (dry-run + simulate modes)
+- [x] Execution layer with 49 domain handlers (dry-run + simulate modes)
 - [x] OPA policy integration (enrichment + validation with Rego policies)
+- [x] Configurable LLM model (`config/model_config.json`)
+- [x] Judge LLM for classification quality evaluation (4-dimension scoring + JSONL logging)
+- [x] End-to-end session test suite (15 scenarios, 120 turns, all 50 domains)
 - [ ] FastAPI service wrapper
 - [ ] Fine-tuning on domain-specific utterances
-- [ ] Two-stage router for scaling to 100+ intents
+- [ ] Two-stage router for scaling to 500+ intents
