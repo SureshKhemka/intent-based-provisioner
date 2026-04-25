@@ -7,7 +7,7 @@
       "turns": [
         {
           "turn": 1,
-          "user_input": "Spin up a 4 core 16GB VM called payments-api in us-east-1 prod",
+          "user_input": "Spin up a 8 core 16GB VM called payments-api in us-east-1 prod",
           "expected_intents": ["compute.provision"],
           "compound": false,
           "notes": ""
@@ -21,7 +21,7 @@
         },
         {
           "turn": 3,
-          "user_input": "I need a postgres database for it, 50GB, db.r5.large in prod",
+          "user_input": "I need a postgres database for it, 200GB, db.r5.large in prod",
           "expected_intents": ["db.provision"],
           "compound": false,
           "notes": "Pronoun 'it' refers to payments-api service"
