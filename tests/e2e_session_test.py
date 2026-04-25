@@ -24,7 +24,7 @@ from execution_router import ExecutionRouter
 SESSION = [
     {
         "turn": 1,
-        "input": "Spin up a 4 core 16GB VM called payments-api in us-east-1 prod",
+        "input": "Spin up a 8 core 16GB VM called payments-api in us-east-1 prod",
         "expected_intents": ["compute.provision"],
     },
     {
