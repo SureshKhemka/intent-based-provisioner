@@ -1,6 +1,6 @@
 {
   "provider": "lmstudio",
-  "model": "gemma-4-27b-it",
+  "model": "gemma-4-26b-a4b-it-mlx",
   "lmstudio_endpoint": "http://localhost:1234",
   "ollama_endpoint": "http://localhost:11434",
   "temperature": 0.1,

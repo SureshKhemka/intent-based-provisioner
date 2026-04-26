@@ -118,7 +118,7 @@ def main():
 
     print("=" * 60)
     print("  Infrastructure Intent-Based Provisioner")
-    print(f"  Model      : {model_name} via Ollama")
+    print(f"  Model      : {model_name} via {model_config.get('provider', 'lmstudio').replace('lmstudio', 'LM Studio').replace('ollama', 'Ollama')}")
     print(f"  Intents    : {len(intent_names)} loaded from config")
     print(f"  Exec mode  : DRY-RUN 🔵  (type 'mode' to toggle)")
     if opa_available:
@@ -242,7 +242,13 @@ def main():
 
         except Exception as e:
             print(f"\n  Error: {e}")
-            print("  Make sure Ollama is running: ollama serve")
+            provider = model_config.get("provider", "lmstudio")
+            if provider == "lmstudio":
+                endpoint = model_config.get("lmstudio_endpoint", "http://localhost:1234")
+                print(f"  Make sure LM Studio is running and a model is loaded ({endpoint})")
+            else:
+                endpoint = model_config.get("ollama_endpoint", "http://localhost:11434")
+                print(f"  Make sure Ollama is running: ollama serve ({endpoint})")
 
 
 if __name__ == "__main__":
