@@ -1,7 +1,8 @@
-import requests
 import json
 import os
 import uuid
+
+import llm_client
 
 CONFIG_DIR  = os.path.join(os.path.dirname(__file__), "config")
 TESTS_DIR   = os.path.join(os.path.dirname(__file__), "tests")
@@ -47,9 +48,6 @@ def generate_utterances(intent_name: str, description: str, count: int = 5,
                         model_config: dict = None) -> list:
     if model_config is None:
         model_config = _load_model_config()
-    model    = model_config.get("model", "qwen3:4b")
-    endpoint = model_config.get("ollama_endpoint", "http://localhost:11434")
-    think    = model_config.get("think", False)
 
     prompt = GENERATE_PROMPT.format(
         name=intent_name,
@@ -57,18 +55,8 @@ def generate_utterances(intent_name: str, description: str, count: int = 5,
         count=count
     )
 
-    response = requests.post(
-        f"{endpoint}/api/generate",
-        json={
-            "model": model,
-            "prompt": prompt,
-            "options": {"temperature": 0.8},
-            "think": think,
-            "stream": False
-        }
-    )
-
-    raw = response.json().get("response", "").strip()
+    gen_config = {**model_config, "temperature": 0.8}
+    raw = llm_client.generate(prompt, gen_config)
 
     # Strip think blocks if present
     if "<think>" in raw:
@@ -98,24 +86,11 @@ def generate_utterances(intent_name: str, description: str, count: int = 5,
 def generate_compound_cases(count: int = 15, model_config: dict = None) -> list:
     if model_config is None:
         model_config = _load_model_config()
-    model    = model_config.get("model", "qwen3:4b")
-    endpoint = model_config.get("ollama_endpoint", "http://localhost:11434")
-    think    = model_config.get("think", False)
 
     prompt = COMPOUND_PROMPT.format(count=count)
 
-    response = requests.post(
-        f"{endpoint}/api/generate",
-        json={
-            "model": model,
-            "prompt": prompt,
-            "options": {"temperature": 0.8},
-            "think": think,
-            "stream": False
-        }
-    )
-
-    raw = response.json().get("response", "").strip()
+    gen_config = {**model_config, "temperature": 0.8}
+    raw = llm_client.generate(prompt, gen_config)
 
     if "<think>" in raw:
         raw = raw.split("</think>")[-1].strip()
@@ -156,7 +131,8 @@ def main():
     test_cases   = []
 
     print(f"Generating test cases for {len(intents)} intents...")
-    print(f"  Using model: {model_config.get('model', 'qwen3:4b')}\n")
+    print(f"  Provider : {llm_client.provider_label(model_config)}")
+    print(f"  Model    : {model_config.get('model', '?')}\n")
 
     for idx, intent in enumerate(intents, 1):
         name        = intent["name"]

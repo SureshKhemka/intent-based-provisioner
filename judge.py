@@ -17,6 +17,8 @@ from datetime import datetime
 
 import requests
 
+import llm_client
+
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), "config")
 BASE_DIR   = os.path.dirname(__file__)
 
@@ -127,45 +129,34 @@ def evaluate(user_input: str, classifier_output: dict,
     if not judge_config.get("enabled", False):
         return {"status": "skipped", "message": "Judge is disabled"}
 
-    model    = judge_config.get("model", "gemma4:31b")
-    endpoint = judge_config.get("ollama_endpoint", "http://localhost:11434")
-    temp     = judge_config.get("temperature", 0.1)
-    think    = judge_config.get("think", False)
-
     system_prompt = _build_judge_prompt(taxonomy_intents, confirmation_rules)
     user_message  = _build_judge_user_message(user_input, classifier_output)
+    provider_name = llm_client.provider_label(judge_config)
+    endpoint      = llm_client._endpoint(judge_config)
 
     try:
         start = time.time()
-        response = requests.post(
-            f"{endpoint}/api/chat",
-            json={
-                "model": model,
-                "format": "json",
-                "options": {"temperature": temp},
-                "think": think,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user",   "content": user_message},
-                ],
-                "stream": False,
-            },
-            timeout=120,
+        raw   = llm_client.chat(
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": user_message},
+            ],
+            judge_config,
+            json_format=True,
         )
         latency = round(time.time() - start, 2)
 
-        raw = response.json()["message"]["content"].strip()
         if "<think>" in raw:
             raw = raw.split("</think>")[-1].strip()
 
         evaluation = json.loads(raw)
         evaluation["status"]    = "evaluated"
         evaluation["latency_s"] = latency
-        evaluation["model"]     = model
+        evaluation["model"]     = judge_config.get("model", "unknown")
         return evaluation
 
     except requests.exceptions.ConnectionError:
-        return {"status": "error", "message": f"Cannot connect to Ollama at {endpoint}"}
+        return {"status": "error", "message": f"Cannot connect to {provider_name} at {endpoint}"}
     except requests.exceptions.Timeout:
         return {"status": "error", "message": "Judge LLM timed out (120s)"}
     except (json.JSONDecodeError, KeyError) as e:

@@ -1,14 +1,16 @@
 {
   "enabled": true,
-  "model": "gemma4:31b",
+  "provider": "lmstudio",
+  "model": "gemma-4-27b-it",
+  "lmstudio_endpoint": "http://localhost:1234",
   "ollama_endpoint": "http://localhost:11434",
   "temperature": 0.1,
   "think": false,
   "log_file": "logs/judge_evaluations.jsonl",
   "dimensions": {
-    "intent_correctness": {"weight": 0.35, "max_score": 10},
-    "slot_extraction": {"weight": 0.30, "max_score": 10},
-    "confidence_calibration": {"weight": 0.20, "max_score": 10},
-    "safety_flags": {"weight": 0.15, "max_score": 10}
+    "intent_correctness":      {"weight": 0.35, "max_score": 10},
+    "slot_extraction":         {"weight": 0.30, "max_score": 10},
+    "confidence_calibration":  {"weight": 0.20, "max_score": 10},
+    "safety_flags":            {"weight": 0.15, "max_score": 10}
   }
 }

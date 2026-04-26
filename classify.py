@@ -1,7 +1,8 @@
-import requests
 import json
 import os
 import time
+
+import llm_client
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), "config")
 
@@ -92,29 +93,17 @@ def classify_intent(user_request: str, system_prompt: str,
                     model_config: dict = None) -> dict:
     if model_config is None:
         model_config = {}
-    model    = model_config.get("model", "qwen3:4b")
-    endpoint = model_config.get("ollama_endpoint", "http://localhost:11434")
-    temp     = model_config.get("temperature", 0.1)
-    think    = model_config.get("think", False)
 
     start = time.time()
-    response = requests.post(
-        f"{endpoint}/api/chat",
-        json={
-            "model": model,
-            "format": "json",
-            "options": {"temperature": temp},
-            "think": think,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": user_request}
-            ],
-            "stream": False
-        }
+    raw = llm_client.chat(
+        [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": user_request},
+        ],
+        model_config,
+        json_format=True,
     )
     latency = round(time.time() - start, 2)
-
-    raw = response.json()["message"]["content"].strip()
 
     # Strip any leaked <think> blocks
     if "<think>" in raw:
